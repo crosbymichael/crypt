@@ -16,7 +16,7 @@ func main() {
 	app.Author = "@crosbymichael"
 	app.Commands = []cli.Command{
 		encryptCommand,
-		//		decryptCommand,
+		decryptCommand,
 	}
 
 	if err := app.Run(os.Args); err != nil {

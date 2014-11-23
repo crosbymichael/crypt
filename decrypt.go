@@ -9,44 +9,41 @@ import (
 	"github.com/codegangsta/cli"
 )
 
-var encryptCommand = cli.Command{
-	Name:  "encrypt",
-	Usage: "encript a file",
+var decryptCommand = cli.Command{
+	Name:  "decrypt",
+	Usage: "decrypt a file",
 	Flags: []cli.Flag{
 		cli.StringFlag{Name: "key", Usage: "key to use for the encryption algo"},
 	},
-	Action: encryptAction,
+	Action: decryptAction,
 }
 
-func getKey(context *cli.Context) string {
-	return context.String("key")
-}
-
-func encryptFile(in, out string, key []byte) error {
+func decryptFile(in, out string, key []byte) error {
 	block, err := aes.NewCipher(hashKey(key))
 	if err != nil {
 		return err
 	}
-	of, err := os.Create(out)
-	if err != nil {
-		return err
-	}
-	defer of.Close()
-	var iv [aes.BlockSize]byte
-	w := &cipher.StreamWriter{S: cipher.NewOFB(block, iv[:]), W: of}
-
 	f, err := os.Open(in)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	if _, err := io.Copy(w, f); err != nil {
+
+	var iv [aes.BlockSize]byte
+	r := &cipher.StreamReader{S: cipher.NewOFB(block, iv[:]), R: f}
+
+	w, err := os.Create(out)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	if _, err := io.Copy(w, r); err != nil {
 		return err
 	}
 	return nil
 }
 
-func encryptAction(context *cli.Context) {
+func decryptAction(context *cli.Context) {
 	if len(context.Args()) != 2 {
 		logger.Fatal("invalid number of arguments: <file in> <file out>")
 	}
@@ -54,7 +51,7 @@ func encryptAction(context *cli.Context) {
 	if key == "" {
 		logger.Fatal("no key provided")
 	}
-	if err := encryptFile(context.Args().Get(0), context.Args().Get(1), []byte(key)); err != nil {
+	if err := decryptFile(context.Args().Get(0), context.Args().Get(1), []byte(key)); err != nil {
 		logger.Fatal(err)
 	}
 }
