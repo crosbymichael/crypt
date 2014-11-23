@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
+	"github.com/rakyll/pb"
 )
 
 var decryptCommand = cli.Command{
@@ -28,6 +29,10 @@ func decryptFile(in, out string, key []byte) error {
 		return err
 	}
 	defer f.Close()
+	stat, err := f.Stat()
+	if err != nil {
+		return err
+	}
 
 	var iv [aes.BlockSize]byte
 	r := &cipher.StreamReader{S: cipher.NewOFB(block, iv[:]), R: f}
@@ -37,7 +42,13 @@ func decryptFile(in, out string, key []byte) error {
 		return err
 	}
 	defer w.Close()
-	if _, err := io.Copy(w, r); err != nil {
+	bar := pb.New(int(stat.Size())).SetUnits(pb.U_BYTES)
+	bar.ShowSpeed = true
+	bar.ShowTimeLeft = false
+	bar.Start()
+	mw := io.MultiWriter(w, bar)
+
+	if _, err := io.Copy(mw, r); err != nil {
 		return err
 	}
 	return nil
