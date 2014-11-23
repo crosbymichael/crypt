@@ -74,9 +74,15 @@ func getAction(context *cli.Context) Action {
 func main() {
 	app := cli.NewApp()
 	app.Name = "crypt"
-	app.Version = "1"
+	app.Version = "alpha"
 	app.Author = "@crosbymichael"
-	app.Usage = "encrypt and decrypt files easily"
+	app.Usage = `
+encrypt and decrypt files easily
+
+NOTE!: While the version is alpha things may break between commits.  
+Do not expect compatibility between builds until the version goes to 1.
+`
+
 	app.Flags = []cli.Flag{
 		cli.StringFlag{Name: "key", Usage: "key to use for the encryption algo"},
 		cli.BoolFlag{Name: "encrypt,e", Usage: "encrypt a file"},
@@ -86,8 +92,13 @@ func main() {
 	}
 	app.Before = func(context *cli.Context) error {
 		if !context.GlobalBool("encrypt") && !context.GlobalBool("decrypt") {
-			app.Action = nil
 			return nil
+		}
+		app.Action = func(context *cli.Context) {
+			a := getAction(context)
+			if err := do(context, key, a); err != nil {
+				logger.Fatal(err)
+			}
 		}
 		if context.GlobalBool("stdin") && context.GlobalString("key") == "" {
 			return fmt.Errorf("--key must be supplied when receiving input via STDIN")
@@ -97,12 +108,6 @@ func main() {
 			return fmt.Errorf("no key provided via --key or STDIN")
 		}
 		return nil
-	}
-	app.Action = func(context *cli.Context) {
-		a := getAction(context)
-		if err := do(context, key, a); err != nil {
-			logger.Fatal(err)
-		}
 	}
 	if err := app.Run(os.Args); err != nil {
 		logger.Fatal(err)
