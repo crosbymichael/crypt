@@ -32,3 +32,6 @@ GLOBAL OPTIONS:
    --help, -h           show help
    --version, -v        print the version
 ```
+
+
+## License - MIT

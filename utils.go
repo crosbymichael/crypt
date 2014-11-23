@@ -15,24 +15,14 @@ import (
 
 type rwHandler func(in, out *os.File, stream cipher.Stream) (io.Reader, io.Writer)
 
-func process(in, out string, key []byte, h rwHandler) error {
-	outf, err := os.Create(out)
-	if err != nil {
-		return err
-	}
-	defer outf.Close()
-	inf, err := os.Open(in)
-	if err != nil {
-		return err
-	}
-	defer inf.Close()
+func process(in, out *os.File, key []byte, h rwHandler) error {
 	var iv [aes.BlockSize]byte
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return err
 	}
-	r, w := h(inf, outf, cipher.NewOFB(block, iv[:]))
-	bar, err := newProgressBar(inf)
+	r, w := h(in, out, cipher.NewOFB(block, iv[:]))
+	bar, err := newProgressBar(in)
 	if err != nil {
 		return err
 	}

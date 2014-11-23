@@ -28,7 +28,21 @@ func action(wrap rwHandler) func(*cli.Context) {
 		if len(key) == 0 {
 			logger.Fatal("no key provided")
 		}
-		if err := process(context.Args().Get(0), context.Args().Get(1), key, wrap); err != nil {
+		in, err := os.Open(context.Args().Get(0))
+		if err != nil {
+			logger.Fatal(err)
+		}
+		defer in.Close()
+		out, err := os.Create(context.Args().Get(1))
+		if err != nil {
+			in.Close()
+			logger.Fatal(err)
+		}
+		defer out.Close()
+		if err := process(in, out, key, wrap); err != nil {
+			in.Close()
+			out.Close()
+			os.Remove(context.Args().Get(1))
 			logger.Fatal(err)
 		}
 	}
