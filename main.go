@@ -26,20 +26,18 @@ func main() {
 	app.Author = "@crosbymichael"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{Name: "key", Usage: "key to use for the encryption algo"},
+		cli.BoolFlag{Name: "encrypt,e", Usage: "encrypt a file"},
+		cli.BoolFlag{Name: "decrypt,d", Usage: "decrypt a file"},
 	}
-	app.Commands = []cli.Command{
-		cli.Command{
-			Name:   "encrypt",
-			Usage:  "encript a file",
-			Action: handler(encrypt),
-		},
-		cli.Command{
-			Name:   "decrypt",
-			Usage:  "decrypt a file",
-			Action: handler(decrypt),
-		},
+	app.Before = func(context *cli.Context) error {
+		switch {
+		case context.GlobalBool("encrypt"):
+			app.Action = handler(encrypt)
+		case context.GlobalBool("decrypt"):
+			app.Action = handler(decrypt)
+		}
+		return nil
 	}
-
 	if err := app.Run(os.Args); err != nil {
 		logger.Fatal(err)
 	}
