@@ -57,7 +57,13 @@ func (p *processor) newIV() []byte {
 }
 
 func (p *processor) stream(iv []byte) cipher.Stream {
-	return cipher.NewOFB(p.block, iv)
+	switch p.action {
+	case Encrypt:
+		return cipher.NewCFBEncrypter(p.block, iv)
+	case Decrypt:
+		return cipher.NewCFBDecrypter(p.block, iv)
+	}
+	return nil
 }
 
 func (p *processor) io(s cipher.Stream) (r io.Reader, w io.Writer) {
