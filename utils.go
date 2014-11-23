@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/md5"
+	"fmt"
 	"io"
 	"os"
 
@@ -26,11 +28,6 @@ func process(in, out string, key []byte, h rwHandler) error {
 	}
 	defer inf.Close()
 
-	bar, err := newProgressBar(inf)
-	if err != nil {
-		return err
-	}
-
 	var iv [aes.BlockSize]byte
 	block, err := newBlock(key)
 	if err != nil {
@@ -38,6 +35,10 @@ func process(in, out string, key []byte, h rwHandler) error {
 	}
 	stream := cipher.NewOFB(block, iv[:])
 	r, w := h(inf, outf, stream)
+	bar, err := newProgressBar(inf)
+	if err != nil {
+		return err
+	}
 	mw := io.MultiWriter(w, bar)
 	if _, err := io.Copy(mw, r); err != nil {
 		return err
@@ -58,32 +59,29 @@ func newProgressBar(in *os.File) (io.Writer, error) {
 }
 
 func newBlock(key []byte) (cipher.Block, error) {
-	return aes.NewCipher(hashKey(key))
+	return aes.NewCipher(key)
 }
 
-func getKey(context *cli.Context) string {
-	return context.GlobalString("key")
+func getKey(context *cli.Context) []byte {
+	key := context.GlobalString("key")
+	if key == "" {
+		fmt.Fprint(os.Stdout, "please enter your key:\n> ")
+		s := bufio.NewScanner(os.Stdin)
+		s.Scan()
+		key = s.Text()
+		if key == "" {
+			return nil
+		}
+	}
+	return hashKey(key)
 }
 
-func hashKey(key []byte) []byte {
+// hashKey hashes the provided key using md5 to ensure that it is
+// 32 bytes long for used with the encryption algos
+func hashKey(key string) []byte {
 	h := md5.New()
-	if _, err := h.Write(key); err != nil {
+	if _, err := fmt.Fprint(h, key); err != nil {
 		panic(err)
 	}
 	return h.Sum(nil)
-}
-
-func handler(wrap rwHandler) func(*cli.Context) {
-	return func(context *cli.Context) {
-		if len(context.Args()) != 2 {
-			logger.Fatal("invalid number of arguments: <file in> <file out>")
-		}
-		key := getKey(context)
-		if key == "" {
-			logger.Fatal("no key provided")
-		}
-		if err := process(context.Args().Get(0), context.Args().Get(1), []byte(key), wrap); err != nil {
-			logger.Fatal(err)
-		}
-	}
 }
