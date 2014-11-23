@@ -21,29 +21,23 @@ func process(in, out string, key []byte, h rwHandler) error {
 		return err
 	}
 	defer outf.Close()
-
 	inf, err := os.Open(in)
 	if err != nil {
 		return err
 	}
 	defer inf.Close()
-
 	var iv [aes.BlockSize]byte
-	block, err := newBlock(key)
+	block, err := aes.NewCipher(key)
 	if err != nil {
 		return err
 	}
-	stream := cipher.NewOFB(block, iv[:])
-	r, w := h(inf, outf, stream)
+	r, w := h(inf, outf, cipher.NewOFB(block, iv[:]))
 	bar, err := newProgressBar(inf)
 	if err != nil {
 		return err
 	}
-	mw := io.MultiWriter(w, bar)
-	if _, err := io.Copy(mw, r); err != nil {
-		return err
-	}
-	return nil
+	_, err = io.Copy(io.MultiWriter(w, bar), r)
+	return err
 }
 
 func newProgressBar(in *os.File) (io.Writer, error) {
@@ -52,14 +46,9 @@ func newProgressBar(in *os.File) (io.Writer, error) {
 		return nil, err
 	}
 	bar := pb.New(int(stat.Size())).SetUnits(pb.U_BYTES)
-	bar.ShowSpeed = true
-	bar.ShowTimeLeft = false
+	bar.ShowSpeed, bar.ShowTimeLeft = true, false
 	bar.Start()
 	return bar, nil
-}
-
-func newBlock(key []byte) (cipher.Block, error) {
-	return aes.NewCipher(key)
 }
 
 func getKey(context *cli.Context) []byte {
@@ -73,12 +62,6 @@ func getKey(context *cli.Context) []byte {
 			return nil
 		}
 	}
-	return hashKey(key)
-}
-
-// hashKey hashes the provided key using md5 to ensure that it is
-// 32 bytes long for used with the encryption algos
-func hashKey(key string) []byte {
 	h := md5.New()
 	if _, err := fmt.Fprint(h, key); err != nil {
 		panic(err)
