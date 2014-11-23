@@ -16,10 +16,10 @@ var decryptCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{Name: "key", Usage: "key to use for the encryption algo"},
 	},
-	Action: decryptAction,
+	Action: handler(decrypt),
 }
 
-func decryptFile(in, out string, key []byte) error {
+func decrypt(in, out string, key []byte) error {
 	block, err := aes.NewCipher(hashKey(key))
 	if err != nil {
 		return err
@@ -52,17 +52,4 @@ func decryptFile(in, out string, key []byte) error {
 		return err
 	}
 	return nil
-}
-
-func decryptAction(context *cli.Context) {
-	if len(context.Args()) != 2 {
-		logger.Fatal("invalid number of arguments: <file in> <file out>")
-	}
-	key := getKey(context)
-	if key == "" {
-		logger.Fatal("no key provided")
-	}
-	if err := decryptFile(context.Args().Get(0), context.Args().Get(1), []byte(key)); err != nil {
-		logger.Fatal(err)
-	}
 }

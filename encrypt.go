@@ -16,14 +16,10 @@ var encryptCommand = cli.Command{
 	Flags: []cli.Flag{
 		cli.StringFlag{Name: "key", Usage: "key to use for the encryption algo"},
 	},
-	Action: encryptAction,
+	Action: handler(encrypt),
 }
 
-func getKey(context *cli.Context) string {
-	return context.String("key")
-}
-
-func encryptFile(in, out string, key []byte) error {
+func encrypt(in, out string, key []byte) error {
 	block, err := aes.NewCipher(hashKey(key))
 	if err != nil {
 		return err
@@ -54,17 +50,4 @@ func encryptFile(in, out string, key []byte) error {
 		return err
 	}
 	return nil
-}
-
-func encryptAction(context *cli.Context) {
-	if len(context.Args()) != 2 {
-		logger.Fatal("invalid number of arguments: <file in> <file out>")
-	}
-	key := getKey(context)
-	if key == "" {
-		logger.Fatal("no key provided")
-	}
-	if err := encryptFile(context.Args().Get(0), context.Args().Get(1), []byte(key)); err != nil {
-		logger.Fatal(err)
-	}
 }
