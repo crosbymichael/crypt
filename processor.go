@@ -3,6 +3,8 @@ package main
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
+	"fmt"
 	"io"
 	"os"
 
@@ -43,17 +45,49 @@ type processor struct {
 }
 
 func (p *processor) Run() error {
-	r, w := p.io(p.stream(p.newIV()))
+	iv, err := p.getIV()
+	if err != nil {
+		return err
+	}
+	r, w := p.io(p.stream(iv))
 	if p.size > 0 {
 		w = io.MultiWriter(w, p.newProgressBar())
 	}
-	_, err := io.Copy(w, r)
+	_, err = io.Copy(w, r)
 	return err
 }
 
-func (p *processor) newIV() []byte {
-	var iv [aes.BlockSize]byte
-	return iv[:]
+func (p *processor) randomIV(iv []byte) error {
+	_, err := rand.Read(iv)
+	return err
+}
+
+func (p *processor) getIV() ([]byte, error) {
+	iv := make([]byte, aes.BlockSize)
+	switch p.action {
+	case Encrypt:
+		if err := p.randomIV(iv); err != nil {
+			return nil, err
+		}
+		// write the iv as the first bytes of the output file
+		wrote, err := p.Out.Write(iv)
+		if err != nil {
+			return nil, err
+		}
+		if wrote != aes.BlockSize {
+			return nil, fmt.Errorf("unable to write correct iv length %d != %d", wrote, aes.BlockSize)
+		}
+	case Decrypt:
+		// read the previous iv as the first bytes of the input file
+		read, err := p.In.Read(iv)
+		if err != nil {
+			return nil, err
+		}
+		if read != aes.BlockSize {
+			return nil, fmt.Errorf("did not read correct iv amount %d != %d", read, aes.BlockSize)
+		}
+	}
+	return iv, nil
 }
 
 func (p *processor) stream(iv []byte) cipher.Stream {
